@@ -9,6 +9,9 @@ test('does not treat ordinary HTTP errors as an invalid session', () => {
 });
 
 test('treats authentication 401 responses as an invalid session', () => {
-  assert.equal(isInvalidSessionResponse(401, 'Token invalid or expired'), true);
-  assert.equal(isInvalidSessionResponse(401, 'Not authorized, no token'), true);
+  assert.equal(isInvalidSessionResponse(401, '/auth/me'), true);
+});
+
+test('does not logout when a protected resource returns 401', () => {
+  assert.equal(isInvalidSessionResponse(401, '/clients'), false);
 });
