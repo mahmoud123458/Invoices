@@ -1,7 +1,6 @@
 import { ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : null);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const inFlightGetRequests = new Map<string, Promise<ApiResponse<unknown>>>();
 
 function getToken(): string | null {
