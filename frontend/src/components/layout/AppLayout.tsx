@@ -50,7 +50,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </Button>
           <span className="font-semibold tracking-tight">InvoiceApp</span>
         </header>
-        <main className="min-w-0 p-4 sm:p-6 lg:p-8">
+        <main role="main" className="min-w-0 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

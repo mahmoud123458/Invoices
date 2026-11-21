@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import DeleteIconButton from '@/components/ui/DeleteIconButton';
@@ -154,6 +155,7 @@ export default function InventoryPage() {
   const lowStockCount = products.filter((p) => p.isLowStock).length;
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       {notification && (
         <div className="fixed left-4 right-4 top-4 z-50 max-w-md rounded-lg bg-green-600 px-5 py-3 text-sm font-medium text-white shadow-lg sm:left-auto sm:right-4">
@@ -338,5 +340,6 @@ export default function InventoryPage() {
         </Card>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

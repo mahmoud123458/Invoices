@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import AdminRoute from '@/components/auth/AdminRoute';
 import Button from '@/components/ui/Button';
 import DeleteIconButton from '@/components/ui/DeleteIconButton';
 import Card from '@/components/ui/Card';
@@ -113,6 +114,7 @@ export default function UsersPage() {
   }
 
   return (
+    <AdminRoute>
     <AppLayout>
       <div className="mx-auto max-w-5xl space-y-6">
         <header>
@@ -199,5 +201,6 @@ export default function UsersPage() {
         </Card>
       </div>
     </AppLayout>
+    </AdminRoute>
   );
 }

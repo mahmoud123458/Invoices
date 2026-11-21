@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge, { getPurchaseOrderStatusBadge } from '@/components/ui/Badge';
@@ -84,6 +85,7 @@ export default function PurchaseOrdersPage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -320,5 +322,6 @@ export default function PurchaseOrdersPage() {
         </Dialog>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

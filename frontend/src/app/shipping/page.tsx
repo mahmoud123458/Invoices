@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import DeleteIconButton from '@/components/ui/DeleteIconButton';
@@ -173,6 +174,7 @@ export default function ShippingPage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -435,5 +437,6 @@ export default function ShippingPage() {
         </Dialog>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

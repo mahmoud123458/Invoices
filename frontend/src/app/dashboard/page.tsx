@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import InvoiceActivityChart from '@/components/dashboard/InvoiceActivityChart';
 import { getInvoiceStatusBadge } from '@/components/ui/Badge';
@@ -262,6 +263,7 @@ export default function DashboardPage() {
   ].filter((action) => action.visible);
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -564,5 +566,6 @@ export default function DashboardPage() {
         </Card>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

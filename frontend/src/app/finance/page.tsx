@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input, { Select } from '@/components/ui/Input';
@@ -156,6 +157,7 @@ export default function FinancePage() {
   const maxFlow = Math.max(1, ...(summary?.cashFlow || []).flatMap((month) => [month.income, month.expenses]));
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -346,5 +348,6 @@ export default function FinancePage() {
         </Card>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

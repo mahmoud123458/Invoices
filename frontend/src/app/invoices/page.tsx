@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import DeleteIconButton from '@/components/ui/DeleteIconButton';
@@ -47,6 +48,7 @@ export default function InvoicesPage() {
     typeof client === 'object' ? client.name : client;
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -159,5 +161,6 @@ export default function InvoicesPage() {
         )}
       </Card>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

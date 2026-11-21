@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -53,6 +54,7 @@ export default function NewClientPage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -136,5 +138,6 @@ export default function NewClientPage() {
         </Card>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

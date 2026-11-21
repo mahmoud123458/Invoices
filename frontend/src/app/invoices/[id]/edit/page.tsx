@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input, { Select } from '@/components/ui/Input';
@@ -140,6 +141,7 @@ export default function EditInvoicePage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="mx-auto max-w-4xl space-y-6">
         <header>
@@ -242,5 +244,6 @@ export default function EditInvoicePage() {
         )}
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

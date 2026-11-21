@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -50,6 +51,7 @@ export default function NewProductPage() {
   };
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="max-w-3xl mx-auto">
         <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -147,5 +149,6 @@ export default function NewProductPage() {
         </form>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Select } from '@/components/ui/Input';
@@ -143,6 +144,7 @@ export default function NewInvoicePage() {
   };
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">New Invoice</h1>
@@ -332,5 +334,6 @@ export default function NewInvoicePage() {
         </div>
       </form>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

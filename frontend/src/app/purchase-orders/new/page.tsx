@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Select } from '@/components/ui/Input';
@@ -108,6 +109,7 @@ export default function NewPurchaseOrderPage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -260,5 +262,6 @@ export default function NewPurchaseOrderPage() {
         </form>
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }

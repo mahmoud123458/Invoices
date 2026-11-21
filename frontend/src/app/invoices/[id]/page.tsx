@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge, { getInvoiceStatusBadge, getShippingStatusBadge } from '@/components/ui/Badge';
@@ -73,6 +74,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
+    <ProtectedRoute>
     <AppLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Actions bar (hidden during print) */}
@@ -319,5 +321,6 @@ export default function InvoiceDetailPage() {
         )}
       </div>
     </AppLayout>
+    </ProtectedRoute>
   );
 }
