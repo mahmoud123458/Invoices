@@ -53,3 +53,47 @@ insert into public.purchase_order_items (order_id, product_id, product_name, qua
 ('po_01', 'prd_03', 'Keychron Q1 Pro Mechanical Keyboard', 20, 130.00, 2600.00),
 ('po_01', 'prd_02', 'Logitech MX Master 3S', 30, 65.00, 1950.00);
 
+-- Keep number sequences aligned with any explicit seed numbers.
+do $$
+declare
+  v_last bigint;
+begin
+  select coalesce(max((regexp_replace(invoice_number, '^INV-', '')::bigint)), 0)
+  into v_last
+  from public.invoices
+  where invoice_number ~ '^INV-[0-9]{5,}$';
+  perform setval(
+    'public.invoice_number_seq',
+    greatest(
+      v_last,
+      coalesce(
+        (select s.last_value
+         from pg_sequences s
+         where s.schemaname='public'
+           and s.sequencename='invoice_number_seq'),
+        1
+      )
+    ),
+    true
+  );
+
+  select coalesce(max((regexp_replace(order_number, '^PO-', '')::bigint)), 0)
+  into v_last
+  from public.purchase_orders
+  where order_number ~ '^PO-[0-9]{5,}$';
+  perform setval(
+    'public.purchase_order_number_seq',
+    greatest(
+      v_last,
+      coalesce(
+        (select s.last_value
+         from pg_sequences s
+         where s.schemaname='public'
+           and s.sequencename='purchase_order_number_seq'),
+        1
+      )
+    ),
+    true
+  );
+end $$;
+
