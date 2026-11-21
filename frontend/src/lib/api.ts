@@ -1,4 +1,5 @@
 import { ApiResponse } from '@/types';
+import { isInvalidSessionResponse } from '@/lib/sessionAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const inFlightGetRequests = new Map<string, Promise<ApiResponse<unknown>>>();
@@ -46,11 +47,12 @@ async function request<T>(
 
     const data = await response.json();
     if (!response.ok) {
-      if (response.status === 401 && typeof window !== 'undefined') {
-        if (!window.location.pathname.startsWith('/login')) {
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
+      if (
+        isInvalidSessionResponse(response.status)
+        && endpoint !== '/auth/login'
+        && typeof window !== 'undefined'
+      ) {
+        window.dispatchEvent(new CustomEvent('invoiceapp:unauthorized'));
       }
       throw new Error(data.message || 'Something went wrong');
     }

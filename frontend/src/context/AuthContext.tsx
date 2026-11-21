@@ -28,6 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    const handleUnauthorized = () => {
+      if (!active) return;
+      setUser(null);
+      localStorage.removeItem('user');
+    };
+    window.addEventListener('invoiceapp:unauthorized', handleUnauthorized);
+
     const restoreSession = () => {
       let session: User;
       try {
@@ -78,7 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     restoreSession();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      window.removeEventListener('invoiceapp:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
