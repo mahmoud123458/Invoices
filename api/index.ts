@@ -4,3 +4,7 @@ import app from '../backend/src/index';
 export default function handler(req: VercelRequest, res: VercelResponse) {
   return app(req, res);
 }
+
+export const config = {
+  runtime: 'nodejs20.x',
+};

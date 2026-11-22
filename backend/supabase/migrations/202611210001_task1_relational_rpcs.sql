@@ -462,10 +462,19 @@ begin
     paid_amount = coalesce((p_invoice->>'paid_amount')::numeric(12,2), i.paid_amount),
     status = coalesce(nullif(p_invoice->>'status', ''), i.status),
     shipping_company_id = coalesce(nullif(p_invoice->>'shipping_company_id', ''), i.shipping_company_id),
-    shipping_status = coalesce(nullif(p_invoice->>'shipping_status', ''), i.shipping_status),
-    delivered_at = coalesce(nullif(p_invoice->>'delivered_at', '')::timestamptz, i.delivered_at),
+    shipping_status = case
+      when p_invoice ? 'shipping_status' then p_invoice->>'shipping_status'
+      else i.shipping_status
+    end,
+    delivered_at = case
+      when p_invoice ? 'delivered_at' then nullif(p_invoice->>'delivered_at', '')::timestamptz
+      else i.delivered_at
+    end,
     due_date = coalesce(nullif(p_invoice->>'due_date', '')::timestamptz, i.due_date),
-    notes = coalesce(nullif(p_invoice->>'notes', ''), i.notes),
+    notes = case
+      when p_invoice ? 'notes' then p_invoice->>'notes'
+      else i.notes
+    end,
     created_by = coalesce(nullif(p_invoice->>'created_by', ''), i.created_by),
     updated_at = now()
   where i.external_id = p_invoice_id

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import Expense from '../models/Expense';
-import Invoice from '../models/Invoice';
+import { supabase } from '../config/supabase';
 
 interface DateRange {
   from: Date;
@@ -25,12 +24,18 @@ function isInRange(value: unknown, range: DateRange): boolean {
 }
 
 function getInvoicePayments(invoice: any): any[] {
-  if (Array.isArray(invoice.payments) && invoice.payments.length > 0) return invoice.payments;
-  const paidAmount = Number(invoice.paidAmount) || (invoice.status === 'paid' ? Number(invoice.total) || 0 : 0);
+  if (Array.isArray(invoice.payments) && invoice.payments.length > 0) {
+    return invoice.payments.map((payment: any) => ({
+      ...payment,
+      date: payment.payment_date || payment.date,
+    }));
+  }
+  const paidAmount = Number(invoice.paid_amount)
+    || (invoice.status === 'paid' ? Number(invoice.total) || 0 : 0);
   if (!paidAmount) return [];
   return [{
     amount: paidAmount,
-    date: invoice.createdAt,
+    date: invoice.created_at,
     method: 'other',
     notes: 'Recorded as paid before payment tracking was enabled',
   }];
@@ -38,6 +43,10 @@ function getInvoicePayments(invoice: any): any[] {
 
 function clientName(client: any): string {
   return typeof client === 'object' && client !== null ? client.name || 'Client' : 'Client';
+}
+
+function throwIfError(error: { message?: string } | null): void {
+  if (error) throw error;
 }
 
 export const getFinancialSummary = async (req: Request, res: Response): Promise<void> => {
@@ -48,24 +57,34 @@ export const getFinancialSummary = async (req: Request, res: Response): Promise<
   }
 
   try {
-    const dateFilter = { $gte: range.from, $lte: range.to };
-    const invoiceFilter = {
-      $or: [
-        { status: 'sent' },
-        { createdAt: dateFilter, status: { $ne: 'cancelled' } },
-        { 'payments.date': dateFilter },
-      ],
-    };
-    const [invoices, expenses] = await Promise.all([
-      Invoice.find(invoiceFilter)
-        .select('invoiceNumber status total paidAmount payments createdAt dueDate client')
-        .populate('client', 'name')
-        .lean(),
-      Expense.find({ date: dateFilter })
-        .select('description category amount date paymentMethod reference')
-        .lean(),
+    if (!supabase) throw new Error('Supabase is not configured');
+    const [invoiceResult, expenseResult] = await Promise.all([
+      supabase
+        .from('invoices')
+        .select([
+          'external_id',
+          'invoice_number',
+          'status',
+          'total',
+          'paid_amount',
+          'created_at',
+          'due_date',
+          'client:clients!invoices_client_id_fkey(name)',
+          'payments:invoice_payments(external_id,id,amount,payment_date,method,reference)',
+        ].join(','))
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('expenses')
+        .select('external_id,description,category,amount,expense_date,payment_method,reference')
+        .gte('expense_date', range.from.toISOString())
+        .lte('expense_date', range.to.toISOString())
+        .order('expense_date', { ascending: false }),
     ]);
+    throwIfError(invoiceResult.error);
+    throwIfError(expenseResult.error);
 
+    const invoices = invoiceResult.data || [];
+    const expenses = expenseResult.data || [];
     const cashTransactions: Array<Record<string, unknown>> = [];
     const monthly = new Map<string, { month: string; income: number; expenses: number }>();
     for (let month = new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), 1));
@@ -79,33 +98,34 @@ export const getFinancialSummary = async (req: Request, res: Response): Promise<
     let collected = 0;
     const outstandingInvoices: Array<Record<string, unknown>> = [];
     for (const invoice of invoices as any[]) {
-      if (invoice.status !== 'cancelled' && invoice.status !== 'draft' && isInRange(invoice.createdAt, range)) {
+      if (invoice.status !== 'cancelled' && invoice.status !== 'draft' && isInRange(invoice.created_at, range)) {
         totalInvoiced += Number(invoice.total) || 0;
       }
 
-      const paidAmount = Number(invoice.paidAmount) || (invoice.status === 'paid' ? Number(invoice.total) || 0 : 0);
+      const paidAmount = Number(invoice.paid_amount)
+        || (invoice.status === 'paid' ? Number(invoice.total) || 0 : 0);
       const amountDue = Math.max(0, (Number(invoice.total) || 0) - paidAmount);
       if (invoice.status !== 'cancelled' && invoice.status !== 'draft' && amountDue > 0) {
         outstandingInvoices.push({
-          _id: String(invoice._id),
-          invoiceNumber: invoice.invoiceNumber,
+          _id: String(invoice.external_id),
+          invoiceNumber: invoice.invoice_number,
           clientName: clientName(invoice.client),
           amountDue,
-          dueDate: invoice.dueDate || null,
+          dueDate: invoice.due_date || null,
         });
       }
 
       for (const payment of getInvoicePayments(invoice)) {
-        if (!isInRange(payment.date || invoice.createdAt, range)) continue;
+        if (!isInRange(payment.date || invoice.created_at, range)) continue;
         const amount = Number(payment.amount) || 0;
         collected += amount;
-        const date = new Date(payment.date || invoice.createdAt);
+        const date = new Date(payment.date || invoice.created_at);
         const month = monthly.get(date.toISOString().slice(0, 7));
         if (month) month.income += amount;
         cashTransactions.push({
-          id: `${invoice._id}-${payment._id || date.getTime()}`,
+          id: `${invoice.external_id}-${payment.external_id || payment.id || date.getTime()}`,
           type: 'income',
-          description: `Payment for ${invoice.invoiceNumber}`,
+          description: `Payment for ${invoice.invoice_number}`,
           category: 'Invoice payment',
           amount,
           date,
@@ -118,26 +138,28 @@ export const getFinancialSummary = async (req: Request, res: Response): Promise<
     let expenseTotal = 0;
     const categoryTotals = new Map<string, number>();
     for (const expense of expenses as any[]) {
-      if (!isInRange(expense.date, range)) continue;
+      if (!isInRange(expense.expense_date, range)) continue;
       const amount = Number(expense.amount) || 0;
       expenseTotal += amount;
       categoryTotals.set(expense.category, (categoryTotals.get(expense.category) || 0) + amount);
-      const month = monthly.get(new Date(expense.date).toISOString().slice(0, 7));
+      const month = monthly.get(new Date(expense.expense_date).toISOString().slice(0, 7));
       if (month) month.expenses += amount;
       cashTransactions.push({
-        id: String(expense._id),
+        id: String(expense.external_id),
         type: 'expense',
         description: expense.description,
         category: expense.category,
         amount,
-        date: expense.date,
-        method: expense.paymentMethod,
+        date: expense.expense_date,
+        method: expense.payment_method,
         reference: expense.reference || '',
       });
     }
 
     outstandingInvoices.sort((a, b) => Number(b.amountDue) - Number(a.amountDue));
-    cashTransactions.sort((a, b) => new Date(b.date as string | Date).getTime() - new Date(a.date as string | Date).getTime());
+    cashTransactions.sort((a, b) =>
+      new Date(b.date as string | Date).getTime() - new Date(a.date as string | Date).getTime()
+    );
     const cashFlow = [...monthly.values()].map((month) => ({
       ...month,
       net: month.income - month.expenses,

@@ -1,179 +1,107 @@
-# 🧾 Invoice Management System (نظام إدارة الفواتير والمخزون والشحن)
+# Invoice Management System
 
-Full-stack Invoice, Inventory, Shipping & Purchase Orders Management Platform built with **Next.js 16 (TypeScript + Tailwind CSS)** and **Node.js + Express + MongoDB**.
+Full-stack invoice, inventory, shipping, purchase-order, and finance platform built with Next.js, Express, and Supabase Postgres.
 
----
+## Features
 
-## 🚀 Features Implemented
+- JWT authentication with admin and staff roles.
+- Client directory and product inventory management.
+- Invoices with partial payments, shipping details, and PDF printing.
+- Purchase orders with atomic inventory updates when approved.
+- Finance summaries for invoices, payments, expenses, and cash flow.
 
-### 1. 🔐 Authentication & Roles
-- JWT-based authentication with server-enforced role-based access control (`admin` and `user`).
-- Admins can create and manage staff/admin accounts.
-- Staff can manage clients, invoices, and purchase requests; inventory and shipping changes are admin-only.
-- Admins and staff can create client directory records. Clients are invoice recipients, not user accounts.
+## Stack
 
-### 2. 👥 Clients Management
-- Complete directory of clients (`/clients`).
-- Search by client name, email, or phone.
-- Full CRUD (Create, Read, Update, Delete) with client modal or dedicated page (`/clients/new`).
-- **Inline client creation**: When creating an invoice, if the client is not in your list, you can click `+ New Client` right inside the invoice form without leaving the page.
+- Frontend: Next.js, TypeScript, Tailwind CSS
+- Backend: Node.js, Express, TypeScript
+- Persistence: Supabase Postgres (server-only service-role client)
+- Authentication: existing custom JWT flow
 
-### 3. 📦 Inventory Management
-- Real-time stock levels and SKU tracking (`/inventory`).
-- Filter by **"Low Stock"** alerts.
-- Automatic inventory sync:
-  - 🔻 **Decreases automatically** when an invoice is created (sold items).
-  - 🔺 **Increases automatically** when a purchase order is approved by admin.
+## Local development
 
-### 4. 🚚 Shipping & Delivery Analytics
-- Dedicated shipping partners dashboard (`/shipping`).
-- For every shipping company:
-  - **Total Invoices Assigned**: Tracks how many invoices were dispatched with this partner.
-  - **Delivery Success Rate (%)**: Percentage of successfully delivered shipments.
-  - **Average Delivery Time**: Estimated turnaround duration in days.
-- In-depth modal report per carrier.
-- Assign any shipping company directly to invoices.
+### Prerequisites
 
-### 5. 🛒 Purchase Orders & Supplier Approvals
-- Purchase orders workflow (`/purchase-orders`).
-- Staff creates purchase requests for needed stock (`/purchase-orders/new`).
-- Status workflow: `Pending` ➔ `Approved` / `Rejected`.
-- **Automated Stock Injection**: As soon as an Admin approves a pending order, the ordered quantities are immediately credited to the corresponding inventory products.
+- Node.js 20 or newer
+- A Supabase project
+- MongoDB access only if you need to run the one-time importer
 
-### 6. 🧾 Invoices & PDF Printing
-- Comprehensive invoice creation (`/invoices/new`) with subtotal, tax rate (%), discount, and net total.
-- Invoice details view with tax invoice format (`/invoices/[id]`).
-- Clean printable / Save to PDF layout (`window.print()`) that hides sidebar and UI chrome automatically.
+### Configure Supabase
 
-### 7. 💹 Financial Management
-- Finance dashboard (`/finance`) with date-filtered invoiced sales, collected payments, outstanding balances, operating expenses, and net cash flow in EGP.
-- Record, edit, categorize, and review operating expenses with payment methods and references.
-- Record multiple partial payments against sent invoices; balances update automatically and cannot be overpaid.
-- Monthly cash-flow and expense-category charts, recent transaction ledger, and outstanding invoice list.
-- Existing paid invoices are migrated as paid in full; their original payment date is represented by the invoice date because no separate historical payment record existed.
-- Purchase orders are not treated as cash expenses until their payment is explicitly recorded. This operational finance module is not a double-entry accounting or tax-compliance system.
+For a new database, apply `backend/supabase/schema.sql` in the Supabase SQL Editor. For an existing schema, apply the numbered files under `backend/supabase/migrations` in order. Do not apply the demo `seed.sql` to a production database.
 
----
+Copy `backend/.env.example` to `backend/.env` and set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `JWT_SECRET`. The service-role key belongs only in the backend environment; never put it in a `NEXT_PUBLIC_*` variable or frontend configuration.
 
-## 🛠️ Tech Stack
+```powershell
+cd backend
+npm install
+npm run seed
+npm run dev
+```
 
-- **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS
-- **Backend**: Node.js, Express.js, TypeScript, Mongoose
-- **Database**: MongoDB
+`npm run seed` adds the demo dataset only when the database has no users. Demo credentials:
 
----
-
-## 📋 Getting Started
-
-### 1. Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [MongoDB](https://www.mongodb.com/try/download/community) running locally on `mongodb://localhost:27017/invoices_db` (or a MongoDB Atlas connection string in `backend/.env`).
-
----
-
-### 2. Quick Setup & Seed Database
-
-#### Step A: Configure & Seed Backend
-1. Open a terminal in `backend/`:
-   ```bash
-   cd backend
-   ```
-2. Make sure MongoDB is running.
-3. Run the database seed script to populate test data:
-   ```bash
-   npm run seed
-   ```
-   *This creates test users, products, clients, shipping partners, sample invoices, and pending purchase orders.*
-
-#### Default Demo Credentials:
 | Role | Email | Password |
 |---|---|---|
-| **Admin** | `admin@invoices.com` | `admin123` |
-| **User** | `user@invoices.com` | `user123` |
+| Admin | `admin@invoices.com` | `admin123` |
+| Staff | `user@invoices.com` | `user123` |
 
-For production, configure a strong `JWT_SECRET` and `JWT_EXPIRES_IN` in `backend/.env`. On a new production database, also provide `ADMIN_NAME`, `ADMIN_EMAIL`, and a unique `ADMIN_PASSWORD` of at least 8 characters to initialize the first administrator. Demo accounts and local JSON fallback are development-only.
+Use demo credentials only in a non-production project. The explicit `npm run seed -- --clean` option clears Supabase tables before recreating the demo dataset; it refuses to run when `NODE_ENV=production`.
 
-On backend startup, legacy client-login accounts and customer-portal orders/notifications are removed. Client directory records, invoices, and invoice history are preserved.
+Run the frontend in a second terminal:
 
----
-
-### 3. Running the Application
-
-Open two terminal windows:
-
-#### Terminal 1 — Start Backend API:
-```bash
-cd backend
-npm run dev
-```
-> Server runs on: `http://localhost:5000`
-
-#### Terminal 2 — Start Frontend:
-```bash
+```powershell
 cd frontend
+npm install
 npm run dev
 ```
-> Application opens on: `http://localhost:3000`
 
----
+The backend runs at `http://localhost:5000`; the frontend runs at `http://localhost:3000`.
 
-### 4. Deploy Frontend and Backend to Vercel
+## Production deployment
 
-This repository contains two Vercel projects. Import the Git repository twice and set each project's **Root Directory**:
+Deploy `frontend/` and `backend/` as separate Vercel projects, with those directories as their respective root directories. Set these backend environment variables in Vercel:
 
-| Project | Root directory | Framework |
-|---|---|---|
-| Frontend | `frontend` | Next.js |
-| Backend | `backend` | Express |
+| Variable | Required | Purpose |
+|---|---:|---|
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only database access; keep secret |
+| `JWT_SECRET` | Yes | Private signing secret for the existing API tokens |
+| `CORS_ORIGINS` | Yes | Exact frontend origin, without a trailing slash |
+| `ADMIN_NAME` | First user only | Initial production administrator name |
+| `ADMIN_EMAIL` | First user only | Initial production administrator email |
+| `ADMIN_PASSWORD` | First user only | Initial password, at least 8 characters |
+| `JWT_EXPIRES_IN` | No | Token lifetime; defaults are defined by the backend |
 
-Create and deploy the frontend project first to get its production domain. Login will not work until the backend is deployed and connected.
+The backend creates the configured administrator only when the `users` table is empty. The app does not fall back to MongoDB or local JSON storage. Set `NEXT_PUBLIC_API_URL` in the frontend project to the backend URL ending in `/api`; never configure the service-role key in the frontend.
 
-Next, create the backend project and set these Vercel environment variables:
+## One-time MongoDB import and cutover
 
-- `MONGODB_URI`: production MongoDB connection string.
-- `JWT_SECRET`: a strong, private signing secret.
-- `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`: initial administrator details for a new database.
-- `CORS_ORIGINS`: the exact production frontend origin, such as `https://your-frontend.vercel.app`.
+The importer reads `MONGODB_URI`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` from the backend environment (including `backend/.env`). It is a standalone command and is never run by application startup.
 
-Set `CORS_ORIGINS` to the exact frontend production origin (without a path). The backend exposes its health check at `/api/health`. After deploying it, set `NEXT_PUBLIC_API_URL` in the frontend Vercel project to the backend deployment URL ending in `/api`, then redeploy the frontend.
+1. Back up MongoDB and keep it unchanged. Create/verify the Supabase project and apply the schema or migrations, including `202611210004_nested_record_external_ids.sql`.
+2. In a trusted local environment, put the source `MONGODB_URI` and Supabase variables in the untracked `backend/.env`. Do not paste credentials into source files, command output, or frontend settings.
+3. Enable a short write-freeze: stop writes to the current application and any other MongoDB writers.
+4. From `backend/`, run:
 
----
+   ```powershell
+   npm run migrate:mongodb
+   ```
 
-## 📁 Project Structure
+5. Review the per-table `source`, `imported`, `skipped`, and `failed` counts. Resolve failures and invalid references, rerun the importer if needed, and verify table counts, representative relationships, and invoice/order numbering in Supabase.
+6. Point production traffic at the Supabase-backed backend. Recheck login and key read/write flows, then reopen writes.
 
-```
-فواتير/
-├── backend/
-│   ├── src/
-│   │   ├── config/             # MongoDB connection (db.ts)
-│   │   ├── controllers/        # Business logic for all modules
-│   │   ├── middleware/         # JWT auth & error handler
-│   │   ├── models/             # Mongoose schemas (User, Client, Product, Invoice, Shipping, PO)
-│   │   ├── routes/             # Express API endpoints
-│   │   ├── seed.ts             # Initial demo data populator
-│   │   └── index.ts            # Server entrypoint
-│   ├── package.json
-│   └── tsconfig.json
-│
-└── frontend/
-    ├── src/
-    │   ├── app/
-    │   │   ├── (routes)/
-    │   │   │   ├── login/              # Sign in page
-    │   │   │   ├── dashboard/          # Metrics overview
-    │   │   │   ├── clients/            # Client directory & modal
-    │   │   │   ├── inventory/          # Stock table & threshold alerts
-    │   │   │   ├── invoices/           # Invoices list, creation & print view
-    │   │   │   ├── shipping/           # Carrier cards & performance rates
-    │   │   │   └── purchase-orders/    # Procurement & admin approval workflow
-    │   │   ├── layout.tsx
-    │   │   └── globals.css
-    │   ├── components/
-    │   │   ├── layout/         # Sidebar & AppLayout
-    │   │   └── ui/             # Button, Card, Input, Select, Badge
-    │   ├── context/            # AuthContext (JWT & session)
-    │   ├── lib/                # api.ts (Centralized Fetch Client)
-    │   └── types/              # TypeScript interfaces
-    ├── package.json
-    └── tsconfig.json
+The import is repeatable: MongoDB wins conflicts on matching `external_id` values, and nested invoice and purchase-order rows are replaced from their source parents. The importer uses bounded batches and does not delete MongoDB source rows or unrelated Supabase rows.
+
+Keep MongoDB as the unchanged rollback source until Supabase validation is complete. Rollback is supported only before Supabase accepts new writes. After writes resume, there is no automatic rollback; reconcile new Supabase writes before switching back.
+
+## Repository layout
+
+```text
+backend/
+  scripts/                 # One-time MongoDB importer and row mappings
+  src/controllers/         # Supabase-backed API operations
+  src/config/supabase.ts   # Server-only Supabase configuration
+  src/seed.ts              # Development demo data
+  supabase/                # Schema, migrations, SQL seed, and database tests
+frontend/
 ```

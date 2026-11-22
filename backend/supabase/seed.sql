@@ -4,8 +4,8 @@
 
 -- 1. Insert Users (Password: admin123 and user123)
 insert into public.users (external_id, name, email, password_hash, role) values
-('usr_admin_01', 'Admin User', 'admin@invoices.com', '$2a$10$wTqKj1b0o9Jvx6o0Fm70xeQ5iHl1z39H3WzB32K3c3n7Jv2uM7C9S', 'admin'),
-('usr_staff_02', 'Sales Staff', 'user@invoices.com', '$2a$10$wTqKj1b0o9Jvx6o0Fm70xeQ5iHl1z39H3WzB32K3c3n7Jv2uM7C9S', 'user')
+('usr_admin_01', 'Admin User', 'admin@invoices.com', '$2a$10$gPqjTPXYANxdCgts5u9zvOAh/EEOTkMWD.0HsI5tW47Rxogt1oqRS', 'admin'),
+('usr_staff_02', 'Sales Staff', 'user@invoices.com', '$2a$10$8oQaID4tc.ktoGvIOIqhKOjIdbz6a.c0pEGF4cJrgPN7BvBO2AR4e', 'user')
 on conflict (email) do nothing;
 
 -- 2. Insert Clients

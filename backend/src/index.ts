@@ -2,13 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
 
-import connectDB from './config/db';
-import { seedData } from './seed';
-import User from './models/User';
-import Invoice from './models/Invoice';
-import { localStore } from './storage/localStore';
+import { initializeDatabase } from './startup';
 import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './routes/authRoutes';
@@ -28,48 +23,6 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-
-async function initializeDatabase(): Promise<void> {
-  await connectDB();
-  localStore.removeClientPortalData();
-  if (mongoose.connection.readyState === 1) {
-    await Promise.all([
-      User.deleteMany({ role: 'client' }),
-      User.updateMany({}, { $unset: { clientId: 1 } }),
-      mongoose.connection.collection('customerorders').deleteMany({}),
-      mongoose.connection.collection('notifications').deleteMany({}),
-      Invoice.updateMany({}, [{
-        $set: {
-          payments: { $ifNull: ['$payments', []] },
-          paidAmount: {
-            $ifNull: [
-              '$paidAmount',
-              { $cond: [{ $eq: ['$status', 'paid'] }, '$total', { $sum: '$payments.amount' }] },
-            ],
-          },
-        },
-      }]),
-    ]);
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    await seedData(false);
-    return;
-  }
-
-  const userCount = await User.countDocuments();
-  if (userCount > 0) return;
-
-  const name = process.env.ADMIN_NAME?.trim();
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD;
-  if (!name || !email || !password || password.length < 8) {
-    throw new Error('Set ADMIN_NAME, ADMIN_EMAIL, and an ADMIN_PASSWORD of at least 8 characters to initialize the production administrator');
-  }
-
-  await User.create({ name, email, password, role: 'admin' });
-  console.log(`✅ Initial administrator created for ${email}`);
-}
 
 // Middleware
 app.use(cors({ origin: allowedOrigins, credentials: true }));

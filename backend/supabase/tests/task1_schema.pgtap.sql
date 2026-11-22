@@ -1,5 +1,5 @@
 begin;
-select plan(40);
+select plan(44);
 
 insert into public.users(external_id,name,email,password_hash,role)
 values ('usr_pgtap','pgTAP User','pgtap@example.invalid','pgTAP-test-only','user')
@@ -13,9 +13,16 @@ insert into public.products(external_id,name,sku,quantity,price)
 values ('prd_pgtap_stock','pgTAP stock','PGTAP-STOCK',1,10)
 on conflict (external_id) do update set quantity=1;
 
-insert into public.invoices(external_id,invoice_number,client_id,total,paid_amount,status)
-values ('inv_pgtap_update','INV-99997','cli_pgtap_stock',100,0,'draft')
-on conflict (external_id) do update set total=100,paid_amount=0,status='draft';
+insert into public.invoices(
+  external_id,invoice_number,client_id,total,paid_amount,status,shipping_status,delivered_at,notes
+)
+values (
+  'inv_pgtap_update','INV-99997','cli_pgtap_stock',100,0,'draft',
+  'delivered','2026-01-03T00:00:00Z','Keep these notes'
+)
+on conflict (external_id) do update
+set total=100,paid_amount=0,status='draft',shipping_status='delivered',
+    delivered_at='2026-01-03T00:00:00Z',notes='Keep these notes';
 
 insert into public.purchase_orders(external_id,order_number,supplier,total,status)
 values ('po_pgtap_double','PO-99998','pgTAP',10,'pending')
@@ -209,6 +216,42 @@ select throws_ok(
   'P0001',
   'invoice overpayment',
   'invoice update rejects overpayment atomically'
+);
+
+select lives_ok(
+  $sql$select public.update_invoice_with_stock(
+    'inv_pgtap_update',
+    '{}'::jsonb,
+    '[]'::jsonb
+  );$sql$,
+  'invoice update accepts omitted nullable fields'
+);
+
+select ok(
+  (select shipping_status='delivered'
+      and delivered_at is not null
+      and notes='Keep these notes'
+   from public.invoices
+   where external_id='inv_pgtap_update'),
+  'invoice update preserves nullable fields omitted from JSON'
+);
+
+select lives_ok(
+  $sql$select public.update_invoice_with_stock(
+    'inv_pgtap_update',
+    '{"shipping_status":null,"delivered_at":null,"notes":""}'::jsonb,
+    '[]'::jsonb
+  );$sql$,
+  'invoice update accepts explicit nullable clears and empty notes'
+);
+
+select ok(
+  (select shipping_status is null
+      and delivered_at is null
+      and notes=''
+   from public.invoices
+   where external_id='inv_pgtap_update'),
+  'invoice update clears nullable fields and preserves empty notes'
 );
 
 select lives_ok(

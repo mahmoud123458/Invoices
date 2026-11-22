@@ -111,6 +111,7 @@ create index if not exists idx_invoices_shipping on public.invoices(shipping_com
 -- 6. INVOICE ITEMS TABLE
 create table if not exists public.invoice_items (
   id bigint generated always as identity primary key,
+  external_id text not null default 'iit_' || substr(md5(random()::text), 1, 16),
   invoice_id text not null references public.invoices(external_id) on update cascade on delete cascade,
   product_id text references public.products(external_id) on update cascade on delete set null,
   product_name text not null,
@@ -121,10 +122,12 @@ create table if not exists public.invoice_items (
 
 create index if not exists idx_invoice_items_invoice on public.invoice_items(invoice_id);
 create index if not exists idx_invoice_items_product on public.invoice_items(product_id);
+create unique index if not exists idx_invoice_items_external_id on public.invoice_items(external_id);
 
 -- 7. INVOICE PAYMENTS TABLE
 create table if not exists public.invoice_payments (
   id bigint generated always as identity primary key,
+  external_id text not null default 'pay_' || substr(md5(random()::text), 1, 16),
   invoice_id text not null references public.invoices(external_id) on update cascade on delete cascade,
   amount numeric(12, 2) not null check (amount > 0),
   payment_date timestamptz not null default now(),
@@ -136,6 +139,7 @@ create table if not exists public.invoice_payments (
 );
 
 create index if not exists idx_invoice_payments_invoice on public.invoice_payments(invoice_id);
+create unique index if not exists idx_invoice_payments_external_id on public.invoice_payments(external_id);
 
 -- 8. PURCHASE ORDERS TABLE
 create table if not exists public.purchase_orders (
@@ -162,6 +166,7 @@ create index if not exists idx_po_status on public.purchase_orders(status);
 -- 9. PURCHASE ORDER ITEMS TABLE
 create table if not exists public.purchase_order_items (
   id bigint generated always as identity primary key,
+  external_id text not null default 'poi_' || substr(md5(random()::text), 1, 16),
   order_id text not null references public.purchase_orders(external_id) on update cascade on delete cascade,
   product_id text references public.products(external_id) on update cascade on delete set null,
   product_name text not null,
@@ -171,6 +176,7 @@ create table if not exists public.purchase_order_items (
 );
 
 create index if not exists idx_po_items_order on public.purchase_order_items(order_id);
+create unique index if not exists idx_po_items_external_id on public.purchase_order_items(external_id);
 
 -- 10. EXPENSES TABLE
 create table if not exists public.expenses (
@@ -310,6 +316,59 @@ begin
   end if;
 end $$;
 
+create or replace function public.align_imported_number_sequences()
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_last bigint;
+begin
+  select coalesce(max((regexp_replace(invoice_number, '^INV-', '')::bigint)), 0)
+  into v_last
+  from public.invoices
+  where invoice_number ~ '^INV-[0-9]{5,}$';
+  if v_last > 0 then
+    perform setval(
+      'public.invoice_number_seq',
+      greatest(
+        v_last,
+        coalesce(
+          (select s.last_value
+           from pg_sequences s
+           where s.schemaname = 'public'
+             and s.sequencename = 'invoice_number_seq'),
+          1
+        )
+      ),
+      true
+    );
+  end if;
+
+  select coalesce(max((regexp_replace(order_number, '^PO-', '')::bigint)), 0)
+  into v_last
+  from public.purchase_orders
+  where order_number ~ '^PO-[0-9]{5,}$';
+  if v_last > 0 then
+    perform setval(
+      'public.purchase_order_number_seq',
+      greatest(
+        v_last,
+        coalesce(
+          (select s.last_value
+           from pg_sequences s
+           where s.schemaname = 'public'
+             and s.sequencename = 'purchase_order_number_seq'),
+          1
+        )
+      ),
+      true
+    );
+  end if;
+end;
+$$;
+
 create or replace function public.create_invoice_with_stock(p_invoice jsonb, p_items jsonb)
 returns jsonb
 language plpgsql
@@ -436,6 +495,20 @@ begin
   where i.external_id = v_invoice.external_id;
 
   return to_jsonb(v_invoice);
+end $$;
+
+revoke all on function public.align_imported_number_sequences() from public;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function public.align_imported_number_sequences() from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function public.align_imported_number_sequences() from authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function public.align_imported_number_sequences() to service_role';
+  end if;
 end $$;
 
 revoke all on function public.create_invoice_with_stock(jsonb, jsonb) from public;
@@ -573,10 +646,19 @@ begin
     paid_amount = coalesce((p_invoice->>'paid_amount')::numeric(12,2), i.paid_amount),
     status = coalesce(nullif(p_invoice->>'status', ''), i.status),
     shipping_company_id = coalesce(nullif(p_invoice->>'shipping_company_id', ''), i.shipping_company_id),
-    shipping_status = coalesce(nullif(p_invoice->>'shipping_status', ''), i.shipping_status),
-    delivered_at = coalesce(nullif(p_invoice->>'delivered_at', '')::timestamptz, i.delivered_at),
+    shipping_status = case
+      when p_invoice ? 'shipping_status' then p_invoice->>'shipping_status'
+      else i.shipping_status
+    end,
+    delivered_at = case
+      when p_invoice ? 'delivered_at' then nullif(p_invoice->>'delivered_at', '')::timestamptz
+      else i.delivered_at
+    end,
     due_date = coalesce(nullif(p_invoice->>'due_date', '')::timestamptz, i.due_date),
-    notes = coalesce(nullif(p_invoice->>'notes', ''), i.notes),
+    notes = case
+      when p_invoice ? 'notes' then p_invoice->>'notes'
+      else i.notes
+    end,
     created_by = coalesce(nullif(p_invoice->>'created_by', ''), i.created_by),
     updated_at = now()
   where i.external_id = p_invoice_id
@@ -760,5 +842,147 @@ begin
     execute 'grant execute on function public.update_invoice_with_stock(text, jsonb, jsonb) to service_role';
     execute 'grant execute on function public.record_invoice_payment(text, jsonb) to service_role';
     execute 'grant execute on function public.approve_purchase_order(text, text) to service_role';
+  end if;
+end $$;
+
+create or replace function public.create_purchase_order_with_items(
+  p_order jsonb,
+  p_items jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_order public.purchase_orders%rowtype;
+  v_item jsonb;
+  v_product_id text;
+  v_quantity integer;
+  v_unit_price numeric(12,2);
+  v_subtotal numeric(12,2) := 0;
+  v_status text;
+begin
+  if p_order is null
+    or jsonb_typeof(p_order) <> 'object'
+    or p_items is null
+    or jsonb_typeof(p_items) <> 'array'
+    or jsonb_array_length(p_items) < 1
+    or jsonb_array_length(p_items) > 50
+  then
+    raise exception 'invalid purchase order payload' using errcode = '22023';
+  end if;
+
+  if nullif(btrim(p_order->>'supplier'), '') is null then
+    raise exception 'supplier is required' using errcode = '22023';
+  end if;
+
+  v_status := coalesce(nullif(p_order->>'status', ''), 'pending');
+  if v_status not in ('pending', 'approved', 'rejected', 'received') then
+    raise exception 'invalid purchase order status: %', v_status using errcode = '22023';
+  end if;
+
+  for v_item in
+    select value from jsonb_array_elements(p_items) as items(value)
+  loop
+    v_product_id := nullif(v_item->>'product_id', '');
+    if jsonb_typeof(v_item) <> 'object'
+      or v_product_id is null
+      or nullif(btrim(v_item->>'product_name'), '') is null
+    then
+      raise exception 'invalid purchase order item' using errcode = '22023';
+    end if;
+
+    begin
+      v_quantity := (v_item->>'quantity')::integer;
+      v_unit_price := (v_item->>'unit_price')::numeric(12,2);
+    exception
+      when invalid_text_representation or numeric_value_out_of_range then
+        raise exception 'invalid purchase order item quantity or unit price' using errcode = '22023';
+    end;
+
+    if v_quantity < 1 or v_unit_price < 0 then
+      raise exception 'invalid purchase order item quantity or unit price' using errcode = '22023';
+    end if;
+
+    if not exists (
+      select 1 from public.products where external_id = v_product_id
+    ) then
+      raise exception 'product not found: %', v_product_id using errcode = 'P0002';
+    end if;
+
+    v_subtotal := v_subtotal + (v_quantity * v_unit_price);
+  end loop;
+
+  insert into public.purchase_orders (
+    external_id,
+    order_number,
+    supplier,
+    supplier_contact,
+    subtotal,
+    total,
+    status,
+    notes,
+    approved_by,
+    approved_at,
+    created_by
+  )
+  values (
+    coalesce(nullif(p_order->>'external_id', ''), 'po_' || substr(md5(random()::text), 1, 8)),
+    coalesce(
+      nullif(p_order->>'order_number', ''),
+      'PO-' || lpad(nextval('public.purchase_order_number_seq')::text, 5, '0')
+    ),
+    btrim(p_order->>'supplier'),
+    nullif(p_order->>'supplier_contact', ''),
+    v_subtotal,
+    v_subtotal,
+    v_status,
+    p_order->>'notes',
+    nullif(p_order->>'approved_by', ''),
+    nullif(p_order->>'approved_at', '')::timestamptz,
+    nullif(p_order->>'created_by', '')
+  )
+  returning * into v_order;
+
+  for v_item in
+    select value from jsonb_array_elements(p_items) as items(value)
+  loop
+    v_quantity := (v_item->>'quantity')::integer;
+    v_unit_price := (v_item->>'unit_price')::numeric(12,2);
+
+    insert into public.purchase_order_items (
+      order_id,
+      product_id,
+      product_name,
+      quantity,
+      unit_price,
+      total
+    )
+    values (
+      v_order.external_id,
+      nullif(v_item->>'product_id', ''),
+      btrim(v_item->>'product_name'),
+      v_quantity,
+      v_unit_price,
+      v_quantity * v_unit_price
+    );
+  end loop;
+
+  return to_jsonb(v_order);
+end $$;
+
+revoke all on function public.create_purchase_order_with_items(jsonb, jsonb) from public;
+
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function public.create_purchase_order_with_items(jsonb, jsonb) from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function public.create_purchase_order_with_items(jsonb, jsonb) from authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function public.create_purchase_order_with_items(jsonb, jsonb) to service_role';
   end if;
 end $$;
