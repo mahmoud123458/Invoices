@@ -70,7 +70,7 @@ export const getFinancialSummary = async (req: Request, res: Response): Promise<
           'created_at',
           'due_date',
           'client:clients!invoices_client_id_fkey(name)',
-          'payments:invoice_payments(external_id,id,amount,payment_date,method,reference)',
+          'payments:invoice_payments(id,amount,payment_date,method,reference)',
         ].join(','))
         .order('created_at', { ascending: false }),
       supabase
