@@ -1,7 +1,7 @@
 import { ApiResponse } from '@/types';
 import { isInvalidSessionResponse } from '@/lib/sessionAuth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://invoices-wheat-rho.vercel.app/api';
 const inFlightGetRequests = new Map<string, Promise<ApiResponse<unknown>>>();
 
 function getToken(): string | null {
