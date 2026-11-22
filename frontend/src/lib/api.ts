@@ -48,7 +48,7 @@ async function request<T>(
     const data = await response.json();
     if (!response.ok) {
       if (
-        isInvalidSessionResponse(response.status, endpoint)
+        isInvalidSessionResponse(response.status, endpoint, data.message)
         && typeof window !== 'undefined'
       ) {
         window.dispatchEvent(new CustomEvent('invoiceapp:unauthorized'));

@@ -15,3 +15,8 @@ test('treats authentication 401 responses as an invalid session', () => {
 test('does not logout when a protected resource returns 401', () => {
   assert.equal(isInvalidSessionResponse(401, '/clients'), false);
 });
+
+test('treats missing-user and invalid-token 401 responses as an invalid session', () => {
+  assert.equal(isInvalidSessionResponse(401, '/invoices', 'User not found'), true);
+  assert.equal(isInvalidSessionResponse(401, '/clients', 'Token invalid or expired'), true);
+});
