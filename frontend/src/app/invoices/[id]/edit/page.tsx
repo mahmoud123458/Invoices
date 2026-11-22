@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
